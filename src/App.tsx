@@ -12,7 +12,7 @@ function App() {
         <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 py-12 px-4">
           <div className="max-w-7xl mx-auto">
             <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
-              🍅 Pomodoro Timer
+              Pomodoro Timer
             </h1>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
