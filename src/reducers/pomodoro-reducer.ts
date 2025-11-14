@@ -5,6 +5,8 @@ export const initialState: PomodoroState = {
   timeLeft: 25 * 60,
   isRunning: false,
   pomodorosCompleted: 0,
+  dailyPomodoros: 0, // ← AGREGAR
+  history: [], // ← AGREGAR
   settings: {
     workDuration: 25,
     shortBreakDuration: 5,
@@ -17,24 +19,22 @@ export const pomodoroReducer = (
   action: PomodoroAction
 ): PomodoroState => {
   switch (action.type) {
-case 'TICK':
-  if (state.timeLeft <= 1) {
-    // Si terminó un periodo de TRABAJO, completar pomodoro
-    if (state.mode === 'work') {
-      return pomodoroReducer(state, { type: 'COMPLETE_POMODORO' });
-    }
-    
-    // Si terminó un descanso, solo detener
-    return {
-      ...state,
-      timeLeft: 0,
-      isRunning: false
-    };
-  }
-  return {
-    ...state,
-    timeLeft: state.timeLeft - 1
-  };
+    case 'TICK':
+      if (state.timeLeft <= 1) {
+        if (state.mode === 'work') {
+          return pomodoroReducer(state, { type: 'COMPLETE_POMODORO' });
+        }
+        
+        return {
+          ...state,
+          timeLeft: 0,
+          isRunning: false
+        };
+      }
+      return {
+        ...state,
+        timeLeft: state.timeLeft - 1
+      };
       
     case 'START':
       if (state.timeLeft === 0) {
@@ -87,31 +87,56 @@ case 'TICK':
         timeLeft: newDuration * 60,
         isRunning: false
       };
-      case 'COMPLETE_POMODORO':
-        const newPomodorosCompleted = state.pomodorosCompleted + 1;
-  
-  // Decidir el siguiente modo
-        let nextMode: TimerMode;
-         if (newPomodorosCompleted % 4 === 0) {
-    // Cada 4 pomodoros → descanso largo
+      
+    case 'COMPLETE_POMODORO':
+      const newPomodorosCompleted = state.pomodorosCompleted + 1;
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // Actualizar historial
+      const existingSessionIndex = state.history.findIndex(
+        session => session.date === today
+      );
+      
+      let newHistory;
+      if (existingSessionIndex !== -1) {
+        // Ya existe una sesión hoy, incrementar
+        newHistory = state.history.map((session, index) =>
+          index === existingSessionIndex
+            ? { ...session, count: session.count + 1 }
+            : session
+        );
+      } else {
+        // Primera sesión del día
+        newHistory = [...state.history, { date: today, count: 1 }];
+      }
+      
+      // Decidir el siguiente modo
+      let nextMode: TimerMode;
+      if (newPomodorosCompleted % 4 === 0) {
         nextMode = 'longBreak';
-        } else {
-    // Si no → descanso corto
+      } else {
         nextMode = 'shortBreak';
-    }
-  
-  // Calcular duración del siguiente modo
-  const nextDuration = nextMode === 'longBreak'
-    ? state.settings.longBreakDuration
-    : state.settings.shortBreakDuration;
-  
-  return {
-    ...state,
-    pomodorosCompleted: newPomodorosCompleted,
-    mode: nextMode,
-    timeLeft: nextDuration * 60,
-    isRunning: false,
-  };
+      }
+      
+      const nextDuration = nextMode === 'longBreak'
+        ? state.settings.longBreakDuration
+        : state.settings.shortBreakDuration;
+      
+      return {
+        ...state,
+        pomodorosCompleted: newPomodorosCompleted,
+        dailyPomodoros: state.dailyPomodoros + 1,
+        history: newHistory,
+        mode: nextMode,
+        timeLeft: nextDuration * 60,
+        isRunning: false,
+      };
+    
+    case 'RESET_DAILY_COUNT':
+      return {
+        ...state,
+        dailyPomodoros: 0,
+      };
       
     default:
       return state;

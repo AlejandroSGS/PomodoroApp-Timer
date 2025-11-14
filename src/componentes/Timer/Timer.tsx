@@ -1,15 +1,23 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePomodoro } from '../../hooks/usePomodoro';
 import { useNotification } from '../../hooks/useNotification';
 import { useSound } from '../../hooks/useSound';
+import { ActiveTaskSelector } from '../Tasks/ActivateTaskSelector';
+import { useTask } from '../../hooks/useTaks';
+
 
 export const Timer = () => {
   const { state, dispatch } = usePomodoro();
+  const { dispatch: taskDispatch } = useTask();
   const { showNotification } = useNotification();
   const { playBeep } = useSound();
   
+  // Estado para la tarea activa
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  
   // useRef para trackear el tiempo anterior
   const prevTimeLeft = useRef(state.timeLeft);
+  const prevMode = useRef(state.mode);
 
   // useEffect para hacer TICK automático cada segundo
   useEffect(() => {
@@ -22,14 +30,22 @@ export const Timer = () => {
     return () => clearInterval(interval);
   }, [state.isRunning, dispatch]);
 
-  // ⭐ NUEVO: useEffect para detectar cuando el timer llega a 0
+  // ⭐ useEffect para detectar cuando el timer llega a 0
   useEffect(() => {
     // Si el tiempo cambió de 1 a 0
     if (prevTimeLeft.current === 1 && state.timeLeft === 0) {
       playBeep(); // Reproducir sonido
       
-      // Mostrar notificación según el modo que terminó
-      if (state.mode === 'work') {
+      // Si terminó un periodo de TRABAJO y hay una tarea activa
+      if (prevMode.current === 'work' && activeTaskId) {
+        // Incrementar el pomodoro de la tarea
+        taskDispatch({ type: 'INCREMENT_POMODORO', payload: activeTaskId });
+        
+        showNotification(
+          '¡Pomodoro completado! 🎉',
+          'Se agregó un pomodoro a tu tarea'
+        );
+      } else if (prevMode.current === 'work') {
         showNotification(
           '¡Pomodoro completado! 🎉',
           'Tiempo de tomar un descanso'
@@ -42,17 +58,19 @@ export const Timer = () => {
       }
     }
     
-    // Actualizar el ref
+    // Actualizar los refs
     prevTimeLeft.current = state.timeLeft;
-  }, [state.timeLeft, state.mode, playBeep, showNotification]);
+    prevMode.current = state.mode;
+  }, [state.timeLeft, state.mode, activeTaskId, playBeep, showNotification, taskDispatch]);
 
-  // Resto del código igual...
+  // Función para formatear tiempo
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Función para obtener el título según el modo
   const getModeTitle = () => {
     switch (state.mode) {
       case 'work':
@@ -77,7 +95,7 @@ export const Timer = () => {
         </div>
         
         <div className="text-gray-600 mb-8">
-          Pomodoros completados: {state.pomodorosCompleted}
+          Pomodoros completados hoy: {state.pomodorosCompleted}
         </div>
       </div>
 
@@ -140,6 +158,14 @@ export const Timer = () => {
           Descanso Largo
         </button>
       </div>
+
+      {/* ⭐ NUEVO: Selector de tarea activa */}
+      {state.mode === 'work' && (
+        <ActiveTaskSelector
+          activeTaskId={activeTaskId}
+          onSelectTask={setActiveTaskId}
+        />
+      )}
     </div>
   );
 };
