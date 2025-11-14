@@ -1,4 +1,4 @@
-import type { PomodoroState, PomodoroAction } from '../types';
+import type { PomodoroState, PomodoroAction, TimerMode } from '../types';
 
 export const initialState: PomodoroState = {
   mode: 'work',
@@ -17,18 +17,24 @@ export const pomodoroReducer = (
   action: PomodoroAction
 ): PomodoroState => {
   switch (action.type) {
-    case 'TICK':
-      if (state.timeLeft <= 1) {
-        return {
-          ...state,
-          timeLeft: 0,
-          isRunning: false
-        };
-      }
-      return {
-        ...state,
-        timeLeft: state.timeLeft - 1
-      };
+case 'TICK':
+  if (state.timeLeft <= 1) {
+    // Si terminó un periodo de TRABAJO, completar pomodoro
+    if (state.mode === 'work') {
+      return pomodoroReducer(state, { type: 'COMPLETE_POMODORO' });
+    }
+    
+    // Si terminó un descanso, solo detener
+    return {
+      ...state,
+      timeLeft: 0,
+      isRunning: false
+    };
+  }
+  return {
+    ...state,
+    timeLeft: state.timeLeft - 1
+  };
       
     case 'START':
       if (state.timeLeft === 0) {
@@ -81,6 +87,31 @@ export const pomodoroReducer = (
         timeLeft: newDuration * 60,
         isRunning: false
       };
+      case 'COMPLETE_POMODORO':
+        const newPomodorosCompleted = state.pomodorosCompleted + 1;
+  
+  // Decidir el siguiente modo
+        let nextMode: TimerMode;
+         if (newPomodorosCompleted % 4 === 0) {
+    // Cada 4 pomodoros → descanso largo
+        nextMode = 'longBreak';
+        } else {
+    // Si no → descanso corto
+        nextMode = 'shortBreak';
+    }
+  
+  // Calcular duración del siguiente modo
+  const nextDuration = nextMode === 'longBreak'
+    ? state.settings.longBreakDuration
+    : state.settings.shortBreakDuration;
+  
+  return {
+    ...state,
+    pomodorosCompleted: newPomodorosCompleted,
+    mode: nextMode,
+    timeLeft: nextDuration * 60,
+    isRunning: false,
+  };
       
     default:
       return state;

@@ -1,10 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePomodoro } from '../../hooks/usePomodoro';
+import { useNotification } from '../../hooks/useNotification';
+import { useSound } from '../../hooks/useSound';
 
 export const Timer = () => {
   const { state, dispatch } = usePomodoro();
+  const { showNotification } = useNotification();
+  const { playBeep } = useSound();
+  
+  // useRef para trackear el tiempo anterior
+  const prevTimeLeft = useRef(state.timeLeft);
 
-  // ⭐ useEffect para hacer TICK automático cada segundo
+  // useEffect para hacer TICK automático cada segundo
   useEffect(() => {
     if (!state.isRunning) return;
 
@@ -15,14 +22,37 @@ export const Timer = () => {
     return () => clearInterval(interval);
   }, [state.isRunning, dispatch]);
 
-  // Función para formatear tiempo
+  // ⭐ NUEVO: useEffect para detectar cuando el timer llega a 0
+  useEffect(() => {
+    // Si el tiempo cambió de 1 a 0
+    if (prevTimeLeft.current === 1 && state.timeLeft === 0) {
+      playBeep(); // Reproducir sonido
+      
+      // Mostrar notificación según el modo que terminó
+      if (state.mode === 'work') {
+        showNotification(
+          '¡Pomodoro completado! 🎉',
+          'Tiempo de tomar un descanso'
+        );
+      } else {
+        showNotification(
+          '¡Descanso terminado! 💪',
+          'Hora de volver al trabajo'
+        );
+      }
+    }
+    
+    // Actualizar el ref
+    prevTimeLeft.current = state.timeLeft;
+  }, [state.timeLeft, state.mode, playBeep, showNotification]);
+
+  // Resto del código igual...
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Función para obtener el título según el modo
   const getModeTitle = () => {
     switch (state.mode) {
       case 'work':

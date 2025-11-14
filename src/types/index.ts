@@ -17,4 +17,5 @@ export type PomodoroAction =
   | { type: 'START' }
   | { type: 'PAUSE' }
   | { type: 'RESET' }
-  | { type: 'SWITCH_MODE'; payload: TimerMode };
+  | { type: 'SWITCH_MODE'; payload: TimerMode }
+  | { type: 'COMPLETE_POMODORO' };  
